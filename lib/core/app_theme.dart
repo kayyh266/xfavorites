@@ -84,9 +84,9 @@ class AppTheme {
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         foregroundColor: Color(0xFFFFFFFF),
       ),
-      inputDecorationTheme: const InputDecorationTheme(
+      inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Color(0xFF15202B),
+        fillColor: const Color(0xFF15202B),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
