@@ -124,6 +124,44 @@ class AccountRepository extends ChangeNotifier {
     return _allAccounts.where((a) => a.folder == null || a.folder!.isEmpty).length;
   }
 
+  /// Tài khoản mở gần đây, sắp theo last_opened giảm dần, tối đa [AppConstants.recentLimit].
+  List<XAccount> get recentAccounts {
+    final opened = _allAccounts.where((a) => a.lastOpened != null).toList()
+      ..sort((a, b) => b.lastOpened!.compareTo(a.lastOpened!));
+    if (opened.length > AppConstants.recentLimit) {
+      return List.unmodifiable(opened.take(AppConstants.recentLimit));
+    }
+    return List.unmodifiable(opened);
+  }
+
+  /// Tài khoản vừa mở gần nhất (null nếu chưa mở tài khoản nào).
+  XAccount? get latestOpened {
+    XAccount? latest;
+    for (final account in _allAccounts) {
+      final openedAt = account.lastOpened;
+      if (openedAt == null) continue;
+      if (latest == null || openedAt.isAfter(latest.lastOpened!)) {
+        latest = account;
+      }
+    }
+    return latest;
+  }
+
+  /// Số tài khoản của từng folder thật (không gồm mục cố định).
+  Map<String, int> get folderCounts {
+    final counts = <String, int>{};
+    for (final folder in _folders) {
+      counts[folder] = 0;
+    }
+    for (final account in _allAccounts) {
+      final folder = account.folder;
+      if (folder != null && folder.isNotEmpty) {
+        counts[folder] = (counts[folder] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }
+
   // =========================================================================
   // Tải dữ liệu ban đầu
   // =========================================================================
@@ -214,15 +252,33 @@ class AccountRepository extends ChangeNotifier {
   }
 
   Future<void> setFavorite(int id, bool favorite) async {
-    await _db.setFavorite(id, favorite);
-    await reload();
+    final index = _allAccounts.indexWhere((a) => a.id == id);
+    if (index < 0) {
+      await _db.setFavorite(id, favorite);
+      return;
+    }
+
+    final previous = _allAccounts[index];
+    if (previous.favorite == favorite) return;
+
+    // Cập nhật lạc quan để không phải tải lại toàn bộ danh sách.
+    _allAccounts = List<XAccount>.from(_allAccounts);
+    _allAccounts[index] = previous.copyWith(favorite: favorite);
+    notifyListeners();
+
+    try {
+      await _db.setFavorite(id, favorite);
+    } catch (_) {
+      _allAccounts[index] = previous;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> toggleFavorite(int id) async {
     final acc = _allAccounts.firstWhereOrNull((a) => a.id == id);
     if (acc == null) return;
-    await _db.setFavorite(id, !acc.favorite);
-    await reload();
+    await setFavorite(id, !acc.favorite);
   }
 
   Future<void> setFolderForAccount(int id, String? folder) async {
@@ -241,8 +297,28 @@ class AccountRepository extends ChangeNotifier {
   // =========================================================================
 
   Future<void> markOpened(int id) async {
-    await _db.markOpened(id);
-    await reload();
+    final index = _allAccounts.indexWhere((a) => a.id == id);
+    if (index < 0) {
+      await _db.markOpened(id);
+      await reload();
+      return;
+    }
+
+    final previous = _allAccounts[index];
+    _allAccounts = List<XAccount>.from(_allAccounts);
+    _allAccounts[index] = previous.copyWith(
+      lastOpened: DateTime.now(),
+      openCount: previous.openCount + 1,
+    );
+    notifyListeners();
+
+    try {
+      await _db.markOpened(id);
+    } catch (_) {
+      _allAccounts[index] = previous;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> unmarkOpened(int id) async {

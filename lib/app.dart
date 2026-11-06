@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'core/app_theme.dart';
 import 'ui/pages/home_page.dart';
 
-/// Widget gốc của ứng dụng. Cấu hình MaterialApp, giao diện sáng/tối theo hệ thống
-/// và hỗ trợ bản địa hóa tiếng Việt.
+/// Widget gốc của ứng dụng.
+///
+/// Chỉ dùng giao diện tối theo yêu cầu thiết kế neumorphic.
 class XFavoritesApp extends ConsumerWidget {
   const XFavoritesApp({super.key});
 
@@ -14,9 +16,8 @@ class XFavoritesApp extends ConsumerWidget {
     return MaterialApp(
       title: 'X Favorites',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      theme: AppTheme.darkTheme,
+      themeMode: ThemeMode.dark,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

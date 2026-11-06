@@ -3,6 +3,9 @@ import 'dart:typed_data';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/app_theme.dart';
+import 'neu_card.dart';
+
 /// Callback xử lý một file được kéo thả vào cửa sổ.
 typedef DropFileCallback = Future<void> Function(Uint8List bytes, String fileName);
 
@@ -48,8 +51,6 @@ class _DropViewerState extends State<DropViewer> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return DropTarget(
       acceptedKinds: const {DropItemKind.file},
       onEnter: (_) => setState(() => _dragging = true),
@@ -62,25 +63,58 @@ class _DropViewerState extends State<DropViewer> {
             Positioned.fill(
               child: IgnorePointer(
                 child: Container(
-                  color: colorScheme.primary.withValues(alpha: 0.88),
+                  color: AppColors.background.withValues(alpha: 0.94),
                   alignment: Alignment.center,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.file_download_outlined,
-                        size: 72,
-                        color: colorScheme.onPrimary,
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: NeuCard(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 32,
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Thả file CSV vào đây',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: colorScheme.onPrimary,
-                              fontWeight: FontWeight.bold,
+                      radius: 24,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.accent.withValues(alpha: 0.14),
+                              border: Border.all(
+                                color: AppColors.accent.withValues(alpha: 0.45),
+                              ),
                             ),
+                            child: const Icon(
+                              Icons.file_download_outlined,
+                              size: 34,
+                              color: AppColors.accent,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          const Text(
+                            'THẢ FILE CSV VÀO ĐÂY',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.2,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Dữ liệu được nhập và lưu ngay trên máy bạn.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),

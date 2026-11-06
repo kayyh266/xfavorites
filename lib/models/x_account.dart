@@ -11,7 +11,8 @@ class XAccount {
   final String status; // 'active' hoặc 'unfollowed'
   final DateTime? addedAt; // ngày thêm (ISO 8601)
   final DateTime? lastSeenFollowing; // lần cuối thấy follow (ISO 8601)
-  final DateTime? lastOpened; // lần cuối mở trang cá nhân (lưu cục bộ, không ghi CSV)
+  final DateTime? lastOpened; // lần cuối mở trang cá nhân (chỉ lưu cục bộ)
+  final int openCount; // số lần mở trang cá nhân (chỉ lưu cục bộ)
 
   const XAccount({
     this.id,
@@ -23,6 +24,7 @@ class XAccount {
     this.addedAt,
     this.lastSeenFollowing,
     this.lastOpened,
+    this.openCount = 0,
   });
 
   /// Tạo bản sao với một số trường được thay đổi.
@@ -36,6 +38,7 @@ class XAccount {
     DateTime? addedAt,
     DateTime? lastSeenFollowing,
     DateTime? lastOpened,
+    int? openCount,
     bool clearLastOpened = false,
   }) {
     return XAccount(
@@ -48,6 +51,7 @@ class XAccount {
       addedAt: addedAt ?? this.addedAt,
       lastSeenFollowing: lastSeenFollowing ?? this.lastSeenFollowing,
       lastOpened: clearLastOpened ? null : lastOpened ?? this.lastOpened,
+      openCount: openCount ?? this.openCount,
     );
   }
 
@@ -63,6 +67,7 @@ class XAccount {
       'added_at': addedAt?.toIso8601String(),
       'last_seen_following': lastSeenFollowing?.toIso8601String(),
       'last_opened': lastOpened?.toIso8601String(),
+      'open_count': openCount,
     };
   }
 
@@ -79,6 +84,9 @@ class XAccount {
       lastSeenFollowing:
           map['last_seen_following'] != null ? DateTime.tryParse(map['last_seen_following']) : null,
       lastOpened: map['last_opened'] != null ? DateTime.tryParse(map['last_opened']) : null,
+      openCount: map['open_count'] is int
+          ? map['open_count'] as int
+          : int.tryParse(map['open_count']?.toString() ?? '') ?? 0,
     );
   }
 
@@ -110,7 +118,8 @@ class XAccount {
             link == other.link &&
             favorite == other.favorite &&
             folder == other.folder &&
-            status == other.status;
+            status == other.status &&
+            openCount == other.openCount;
   }
 
   @override
@@ -121,5 +130,6 @@ class XAccount {
         favorite,
         folder,
         status,
+        openCount,
       );
 }

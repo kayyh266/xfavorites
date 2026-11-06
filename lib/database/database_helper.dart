@@ -30,7 +30,8 @@ class DatabaseHelper {
   /// Phiên bản CSDL hiện tại.
   ///
   /// v2: bỏ folder mặc định "Chưa phân loại" khỏi bảng folders.
-  static const int dbVersion = 2;
+  /// v3: thêm cột open_count (số lần mở, chỉ lưu cục bộ, không ghi CSV).
+  static const int dbVersion = 3;
 
   /// Cấu hình đường dẫn DB cho test.
   ///
@@ -82,7 +83,8 @@ class DatabaseHelper {
         status TEXT NOT NULL DEFAULT 'active',
         added_at TEXT,
         last_seen_following TEXT,
-        last_opened TEXT
+        last_opened TEXT,
+        open_count INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
@@ -97,6 +99,16 @@ class DatabaseHelper {
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _removeUncategorizedFolder(db);
+    }
+    if (oldVersion < 3) {
+      // Kiểm tra trước khi ALTER để tránh lỗi "duplicate column".
+      final columns = await db.rawQuery('PRAGMA table_info(accounts)');
+      final hasOpenCount = columns.any((column) => column['name'] == 'open_count');
+      if (!hasOpenCount) {
+        await db.execute(
+          'ALTER TABLE accounts ADD COLUMN open_count INTEGER NOT NULL DEFAULT 0',
+        );
+      }
     }
   }
 
@@ -232,14 +244,14 @@ class DatabaseHelper {
     );
   }
 
-  /// Đánh dấu tài khoản đã mở trang cá nhân (lưu last_opened).
+  /// Đánh dấu tài khoản đã mở trang cá nhân.
+  ///
+  /// Tăng open_count thêm 1 và cập nhật last_opened (chỉ lưu cục bộ).
   Future<int> markOpened(int id) async {
     Database db = await instance.database;
-    return await db.update(
-      'accounts',
-      {'last_opened': DateTime.now().toIso8601String()},
-      where: 'id = ?',
-      whereArgs: [id],
+    return await db.rawUpdate(
+      'UPDATE accounts SET last_opened = ?, open_count = open_count + 1 WHERE id = ?',
+      [DateTime.now().toIso8601String(), id],
     );
   }
 

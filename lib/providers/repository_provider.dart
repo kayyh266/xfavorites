@@ -20,3 +20,21 @@ final foldersProvider = Provider<List<String>>((ref) {
   final repo = ref.watch(accountRepositoryProvider);
   return repo.folders;
 });
+
+/// Provider các tài khoản mở gần đây (tối đa 8, mới nhất trước).
+final recentAccountsProvider = Provider<List<XAccount>>((ref) {
+  final repo = ref.watch(accountRepositoryProvider);
+  return repo.recentAccounts;
+});
+
+/// Provider tài khoản vừa mở gần nhất.
+final latestOpenedProvider = Provider<XAccount?>((ref) {
+  final repo = ref.watch(accountRepositoryProvider);
+  return repo.latestOpened;
+});
+
+/// Provider số tài khoản theo từng folder.
+final folderCountsProvider = Provider<Map<String, int>>((ref) {
+  final repo = ref.watch(accountRepositoryProvider);
+  return repo.folderCounts;
+});

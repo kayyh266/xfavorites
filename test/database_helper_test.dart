@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:xfavorites/database/database_helper.dart';
+import 'package:xfavorites/models/x_account.dart';
 
 void main() {
   setUpAll(() {
@@ -109,6 +110,88 @@ void main() {
     expect(byName['artist1']!.folder, 'Art');
     expect(byName['artist2']!.folder, 'Art');
     expect(byName['artist3']!.folder, isNull);
+  });
+
+  test('markOpened tăng open_count và cập nhật last_opened', () async {
+    final db = DatabaseHelper.instance;
+
+    final id = await db.insertAccount(
+      const XAccount(username: 'artist1', link: 'https://x.com/artist1'),
+    );
+
+    var account = await db.getAccountById(id);
+    expect(account, isNotNull);
+    expect(account!.openCount, 0);
+    expect(account.lastOpened, isNull);
+
+    await db.markOpened(id);
+    await db.markOpened(id);
+
+    account = await db.getAccountById(id);
+    expect(account, isNotNull);
+    expect(account!.openCount, 2);
+    expect(account.lastOpened, isNotNull);
+  });
+
+  test('nâng cấp CSDL v2 lên v3 thêm cột open_count mặc định 0', () async {
+    final tempDir = await Directory.systemTemp.createTemp('xfavorites_v3_');
+    final dbPath = p.join(tempDir.path, 'upgrade_v3.db');
+
+    try {
+      await DatabaseHelper.instance.close();
+      DatabaseHelper.configureForTesting(path: dbPath);
+
+      // Tạo CSDL kiểu phiên bản 2 (chưa có open_count).
+      final rawDb = await databaseFactory.openDatabase(
+        dbPath,
+        options: OpenDatabaseOptions(
+          version: 2,
+          onCreate: (db, version) async {
+            await db.execute('''
+              CREATE TABLE accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                link TEXT NOT NULL,
+                favorite INTEGER NOT NULL DEFAULT 0,
+                folder TEXT,
+                status TEXT NOT NULL DEFAULT 'active',
+                added_at TEXT,
+                last_seen_following TEXT,
+                last_opened TEXT
+              )
+            ''');
+            await db.execute('CREATE TABLE folders (name TEXT PRIMARY KEY)');
+          },
+        ),
+      );
+      await rawDb.insert('accounts', {
+        'username': 'legacy_user',
+        'link': 'https://x.com/legacy_user',
+      });
+      await rawDb.close();
+
+      // Mở lại bằng DatabaseHelper (version 3) -> onUpgrade phải ALTER TABLE.
+      DatabaseHelper.configureForTesting(path: dbPath);
+      final upgraded = DatabaseHelper.instance;
+      final columns =
+          await (await upgraded.database).rawQuery('PRAGMA table_info(accounts)');
+      expect(columns.any((column) => column['name'] == 'open_count'), isTrue);
+
+      final accounts = await upgraded.getAccounts();
+      expect(accounts.length, 1);
+      expect(accounts.first.openCount, 0);
+
+      await upgraded.markOpened(accounts.first.id!);
+      final opened = await upgraded.getAccountById(accounts.first.id!);
+      expect(opened!.openCount, 1);
+      expect(opened.lastOpened, isNotNull);
+    } finally {
+      await DatabaseHelper.instance.close();
+      DatabaseHelper.configureForTesting(path: null);
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    }
   });
 
   test('folder "Chưa phân loại" cũ trong CSDL được dọn khi mở lại', () async {

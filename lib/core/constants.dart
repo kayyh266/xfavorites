@@ -20,14 +20,20 @@ class AppConstants {
   static const String filterFavorites = 'Yêu thích';
   static const String filterUncategorized = 'Chưa phân loại';
 
+  /// Giá trị sentinel dùng trong menu chọn folder (đại diện cho null).
+  static const String menuUncategorized = '__uncategorized__';
+
   /// Các chế độ sắp xếp.
   static const String sortAz = 'A-Z';
   static const String sortNewest = 'Mới thêm';
   static const String sortFavoritesFirst = 'Yêu thích trước';
 
-  /// Khoảng cách tối thiểu cho vùng bấm (48dp theo yêu cầu 접근 tính).
+  /// Số tài khoản mở gần đây hiển thị trên trang chủ.
+  static const int recentLimit = 8;
+
+  /// Khoảng cách tối thiểu cho vùng bấm (48dp).
   static const double minTouchSize = 48.0;
 
-  /// Ngưỡng cửa sổ được coi là "rộng" (dùng cho bố cục máy tính).
+  /// Ngưỡng cửa sổ được coi là "rộng" (bố cục máy tính).
   static const double desktopBreakpoint = 900.0;
 }

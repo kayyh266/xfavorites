@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../core/app_theme.dart';
 import '../../core/constants.dart';
+import 'neu_card.dart';
 
 /// Hàng chip lọc cuộn ngang: Tất cả / Yêu thích / Chưa phân loại / từng folder.
 class FilterChipRow extends StatelessWidget {
@@ -8,6 +10,7 @@ class FilterChipRow extends StatelessWidget {
   final bool favoritesOnly;
   final ValueChanged<String?> onFolderSelected;
   final VoidCallback? onFavoritesSelected;
+  final Map<String, int>? counts;
 
   const FilterChipRow({
     super.key,
@@ -16,6 +19,7 @@ class FilterChipRow extends StatelessWidget {
     required this.onFolderSelected,
     this.favoritesOnly = false,
     this.onFavoritesSelected,
+    this.counts,
   });
 
   @override
@@ -24,9 +28,10 @@ class FilterChipRow extends StatelessWidget {
     final itemCount = 3 + folders.length;
 
     return SizedBox(
-      height: AppConstants.minTouchSize,
+      height: 48,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         itemCount: itemCount,
         itemBuilder: (context, index) {
           if (index == 0) {
@@ -69,12 +74,36 @@ class FilterChipRow extends StatelessWidget {
     required VoidCallback onSelected,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      child: FilterChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: (_) => onSelected(),
-        showCheckmark: false,
+      padding: const EdgeInsets.only(right: 8),
+      child: NeuCard(
+        onTap: onSelected,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        radius: 999,
+        compactShadow: !selected,
+        color: selected ? AppColors.accent : AppColors.surface,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (selected) ...[
+              const Icon(
+                Icons.check_rounded,
+                size: 15,
+                color: AppColors.onBright,
+              ),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: selected ? AppColors.onBright : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
