@@ -19,8 +19,8 @@ dependencies:
   path: ^1.9.0
   path_provider: ^2.1.1
 
-  # Chọn file CSV (file picker)
-  file_picker: ^6.1.1
+  # Chọn file CSV (file picker) - Đã hạ xuống bản ổn định tương thích với Dart 3.13
+  file_picker: ^8.1.4
 
   # Mở link trang cá nhân bằng trình duyệt ngoài ứng dụng
   url_launcher: ^6.2.1
@@ -33,7 +33,7 @@ dependencies:
   collection: ^1.18.0
 
   # Kéo thả file CSV trên Windows/Linux/macOS
-  desktop_drop: ^0.9.2
+  desktop_drop: ^0.8.4
 
   # Thư viện SQLite native cho desktop (không phụ thuộc sqlite3.dll hệ thống)
   sqlite3_flutter_libs: ^0.6.0+eol
