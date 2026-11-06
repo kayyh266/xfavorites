@@ -16,7 +16,7 @@ class AccountAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = color ?? Theme.of(context).colorScheme.primary.withOpacity(0.15);
+    final bgColor = color ?? Theme.of(context).colorScheme.primary.withValues(alpha: 0.15);
     return Container(
       width: size,
       height: size,
@@ -24,7 +24,7 @@ class AccountAvatar extends StatelessWidget {
         color: bgColor,
         borderRadius: BorderRadius.circular(size / 2),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -34,7 +34,7 @@ class AccountAvatar extends StatelessWidget {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: size * 0.45,
-          color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
+          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.9),
         ),
       ),
     );

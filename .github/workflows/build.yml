@@ -1,7 +1,7 @@
 name: Build X Favorites
 
 env:
-  FLUTTER_VERSION: '3.22.2'
+  FLUTTER_VERSION: '3.47.9'
 
 on:
   push:

@@ -350,7 +350,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       leading: Icon(isSelected ? Icons.folder : Icons.folder_outlined),
       title: Text('$label ($count)'),
       selected: isSelected,
-      selectedTileColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+      selectedTileColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
       onTap: () {
         ref.read(accountRepositoryProvider.notifier).setFolderFilter(folder);
       },
@@ -434,7 +434,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget _buildSelectionBar(AccountRepository repo) {
     return Container(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [

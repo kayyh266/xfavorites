@@ -67,7 +67,7 @@ class AccountListItem extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
                             color: isOpened
-                                ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
+                                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)
                                 : Theme.of(context).colorScheme.onSurface,
                             decoration: isOpened ? TextDecoration.lineThrough : null,
                           ),
@@ -109,7 +109,7 @@ class AccountListItem extends StatelessWidget {
                             folderLabel,
                             style: TextStyle(
                               fontSize: 12,
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                             ),
                           ),
                         ),
@@ -139,7 +139,7 @@ class AccountListItem extends StatelessWidget {
                   account.favorite ? Icons.star : Icons.star_border,
                   color: account.favorite
                       ? Theme.of(context).colorScheme.secondaryContainer
-                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
                 tooltip: account.favorite ? 'Bỏ yêu thích' : 'Yêu thích',
                 onPressed: onFavoriteToggle,

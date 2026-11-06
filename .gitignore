@@ -7,6 +7,18 @@
 /.flutter-plugins
 /.flutter-plugins-dependencies
 
+# Flutter metadata
+.metadata
+
+# Local properties
+android/local.properties
+
+# Generated plugin registrant
+android/app/src/main/java/io/
+
+# IDE
+.idea/
+
 # Dart/Flutter tooling
 .dart_tool/
 .packages

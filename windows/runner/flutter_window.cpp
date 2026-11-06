@@ -1,48 +1,71 @@
 #include "flutter_window.h"
 
-#include <flutter_plugin_registrar.h>
+#include <optional>
 
-#include "utils.h"
+#include "flutter/generated_plugin_registrant.h"
 
-FlutterWindow::FlutterWindow(HINSTANCE instance, int show_command,
-                             FlutterDesktopResettableRef controller)
-    : Win32Window::Win32Window(instance, show_command),
-      controller_(std::move(controller)) {}
+FlutterWindow::FlutterWindow(const flutter::DartProject& project)
+    : project_(project) {}
 
 FlutterWindow::~FlutterWindow() {}
 
 bool FlutterWindow::OnCreate() {
   if (!Win32Window::OnCreate()) {
     return false;
-}
+  }
 
-  RECT margin = {-1, -1, -1, -1};
-  DwmExtendFrameIntoClientArea(GetHWND(), &margin);
+  RECT frame = GetClientArea();
 
-  controller_->RegisterTopLevelWindow(GetHWND());
+  // The size here must match the window dimensions to avoid unnecessary surface
+  // creation / destruction in the startup path.
+  flutter_controller_ = std::make_unique<flutter::FlutterViewController>(
+      frame.right - frame.left, frame.bottom - frame.top, project_);
+  // Ensure that basic setup of the controller was successful.
+  if (!flutter_controller_->engine() || !flutter_controller_->view()) {
+    return false;
+  }
+  RegisterPlugins(flutter_controller_->engine());
+  SetChildContent(flutter_controller_->view()->GetNativeWindow());
+
+  flutter_controller_->engine()->SetNextFrameCallback([&]() {
+    this->Show();
+  });
+
+  // Flutter can complete the first frame before the "show window" callback is
+  // registered. The following call ensures a frame is pending to ensure the
+  // window is shown. It is a no-op if the first frame hasn't completed yet.
+  flutter_controller_->ForceRedraw();
 
   return true;
 }
 
 void FlutterWindow::OnDestroy() {
-  controller_.reset();
+  if (flutter_controller_) {
+    flutter_controller_ = nullptr;
+  }
+
   Win32Window::OnDestroy();
 }
 
-void FlutterWindow::OnSize() {
-  if (controller_) {
-    controller_->GetView()->Resize(client_width(), client_height());
+LRESULT
+FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
+                              WPARAM const wparam,
+                              LPARAM const lparam) noexcept {
+  // Give Flutter, including plugins, an opportunity to handle window messages.
+  if (flutter_controller_) {
+    std::optional<LRESULT> result =
+        flutter_controller_->HandleTopLevelWindowProc(hwnd, message, wparam,
+                                                      lparam);
+    if (result) {
+      return *result;
+    }
   }
-}
 
-LRESULT FlutterWindow::MessageHandler(HWND hWnd, UINT const message,
-                                      WPARAM const wParam,
-                                      LPARAM const lParam) noexcept {
   switch (message) {
-    // Xác định việc xử lý WM_DROPFILES ở đây nếu muốn xử lý native.
-    case WM_DROPFILES:
-      return 0;
-    default:
-      return Win32Window::MessageHandler(hWnd, message, wParam, lParam);
+    case WM_FONTCHANGE:
+      flutter_controller_->engine()->ReloadSystemFonts();
+      break;
   }
+
+  return Win32Window::MessageHandler(hwnd, message, wparam, lparam);
 }
