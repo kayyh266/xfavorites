@@ -4,7 +4,7 @@ import 'package:xfavorites/services/csv_parser.dart';
 void main() {
   group('CsvParser', () {
     test('phân tích đúng CSV đầy đủ 7 cột', () {
-      final csv = '''username,link,favorite,folder,status,added_at,last_seen_following
+      const csv = '''username,link,favorite,folder,status,added_at,last_seen_following
 artist1,https://x.com/artist1,true,Art,active,2026-01-01T00:00:00Z,2026-01-02T00:00:00Z
 artist2,https://x.com/artist2,false,,unfollowed,2026-01-03T00:00:00Z,''';
 
@@ -22,7 +22,7 @@ artist2,https://x.com/artist2,false,,unfollowed,2026-01-03T00:00:00Z,''';
     });
 
     test('loại bỏ BOM UTF-8 ở đầu file', () {
-      final csv = '\uFEFFusername,link\nartist1,https://x.com/artist1\n';
+      const csv = '\uFEFFusername,link\nartist1,https://x.com/artist1\n';
 
       final rows = CsvParser.parse(csv);
 
@@ -32,7 +32,7 @@ artist2,https://x.com/artist2,false,,unfollowed,2026-01-03T00:00:00Z,''';
     });
 
     test('chỉ có hai cột username,link (thiếu cột khác) vẫn nhập được', () {
-      final csv = 'username,link\nartist1,https://x.com/artist1\nartist2,https://x.com/artist2\n';
+      const csv = 'username,link\nartist1,https://x.com/artist1\nartist2,https://x.com/artist2\n';
 
       final rows = CsvParser.parse(csv);
 
@@ -47,7 +47,7 @@ artist2,https://x.com/artist2,false,,unfollowed,2026-01-03T00:00:00Z,''';
     });
 
     test('bỏ qua dòng trống', () {
-      final csv = 'username,link\nartist1,https://x.com/artist1\n\n\nartist2,https://x.com/artist2\n';
+      const csv = 'username,link\nartist1,https://x.com/artist1\n\n\nartist2,https://x.com/artist2\n';
 
       final rows = CsvParser.parse(csv);
 
@@ -55,7 +55,7 @@ artist2,https://x.com/artist2,false,,unfollowed,2026-01-03T00:00:00Z,''';
     });
 
     test('chấp nhận username có ký tự @ đằng trước', () {
-      final csv = 'username,link\n@artist1,https://x.com/artist1\n';
+      const csv = 'username,link\n@artist1,https://x.com/artist1\n';
 
       final rows = CsvParser.parse(csv);
 
@@ -76,7 +76,7 @@ artist2,https://x.com/artist2,false,,unfollowed,2026-01-03T00:00:00Z,''';
     });
 
     test('xử lý trường chứa dấu phẩy được bọc bởi nháy kép', () {
-      final csv = 'username,link\nartist1,"https://x.com/artist1, extra"\n';
+      const csv = 'username,link\nartist1,"https://x.com/artist1, extra"\n';
 
       final rows = CsvParser.parse(csv);
 
@@ -85,7 +85,7 @@ artist2,https://x.com/artist2,false,,unfollowed,2026-01-03T00:00:00Z,''';
     });
 
     test('xử lý nháy kép đôi trong trường ("")', () {
-      final csv = 'username,link\nartist1,"https://x.com/artist1""test"\n';
+      const csv = 'username,link\nartist1,"https://x.com/artist1""test"\n';
 
       final rows = CsvParser.parse(csv);
 

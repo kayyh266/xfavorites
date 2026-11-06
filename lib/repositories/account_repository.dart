@@ -345,8 +345,4 @@ class AccountRepository extends ChangeNotifier {
     return CsvExport.toUtf8WithBom(csvString);
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
 }

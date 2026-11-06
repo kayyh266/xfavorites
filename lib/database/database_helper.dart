@@ -101,7 +101,7 @@ class DatabaseHelper {
     }
 
     if (whereClauses.isNotEmpty) {
-      query += ' WHERE ' + whereClauses.join(' AND ');
+      query += ' WHERE ${whereClauses.join(' AND ')}';
     }
 
     query += ' ORDER BY username COLLATE NOCASE ASC';

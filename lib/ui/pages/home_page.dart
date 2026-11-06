@@ -312,13 +312,13 @@ class _HomePageState extends ConsumerState<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
+        const Padding(
+          padding: EdgeInsets.all(16),
           child: Row(
             children: [
-              const Icon(Icons.folder, size: 24),
-              const SizedBox(width: 8),
-              const Text('Folders', style: TextStyle(fontWeight: FontWeight.bold)),
+              Icon(Icons.folder, size: 24),
+              SizedBox(width: 8),
+              Text('Folders', style: TextStyle(fontWeight: FontWeight.bold)),
             ],
           ),
         ),
@@ -400,10 +400,10 @@ class _HomePageState extends ConsumerState<HomePage> {
           const SizedBox(width: 12),
           DropdownButton<String>(
             value: repo.sortMode,
-            items: [
-              DropdownMenuItem(value: AppConstants.sortAz, child: const Text('Sắp xếp: A-Z')),
-              DropdownMenuItem(value: AppConstants.sortNewest, child: const Text('Sắp xếp: Mới thêm')),
-              DropdownMenuItem(value: AppConstants.sortFavoritesFirst, child: const Text('Sắp xếp: Yêu thích trước')),
+            items: const [
+              const DropdownMenuItem<String>(value: AppConstants.sortAz, child: Text('Sắp xếp: A-Z')),
+              const DropdownMenuItem<String>(value: AppConstants.sortNewest, child: Text('Sắp xếp: Mới thêm')),
+              const DropdownMenuItem<String>(value: AppConstants.sortFavoritesFirst, child: Text('Sắp xếp: Yêu thích trước')),
             ],
             onChanged: (value) {
               if (value != null) {

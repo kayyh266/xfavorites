@@ -149,13 +149,13 @@ class AccountListItem extends StatelessWidget {
               PopupMenuButton<String>(
                 tooltip: 'Tùy chọn',
                 itemBuilder: (context) => [
-                  PopupMenuItem(
+                  const PopupMenuItem(
                     value: 'open',
                     child: Row(
                       children: [
-                        const Icon(Icons.open_in_new, size: 16),
-                        const SizedBox(width: 8),
-                        const Text('Mở trang cá nhân'),
+                        Icon(Icons.open_in_new, size: 16),
+                        SizedBox(width: 8),
+                        Text('Mở trang cá nhân'),
                       ],
                     ),
                   ),
@@ -169,23 +169,23 @@ class AccountListItem extends StatelessWidget {
                       ],
                     ),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem(
                     value: 'move',
                     child: Row(
                       children: [
-                        const Icon(Icons.folder_open, size: 16),
-                        const SizedBox(width: 8),
-                        const Text('Di chuyển folder'),
+                        Icon(Icons.folder_open, size: 16),
+                        SizedBox(width: 8),
+                        Text('Di chuyển folder'),
                       ],
                     ),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem(
                     value: 'delete',
                     child: Row(
                       children: [
-                        const Icon(Icons.delete_outline, color: Colors.red),
-                        const SizedBox(width: 8),
-                        const Text('Xóa', style: TextStyle(color: Colors.red)),
+                        Icon(Icons.delete_outline, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('Xóa', style: TextStyle(color: Colors.red)),
                       ],
                     ),
                   ),
