@@ -1,49 +1,30 @@
 name: Build X Favorites
 
-# ============================================================================
-# BIẾN MÔI TRƯỜNG - SỬA TẠI ĐÂY NẾU MUỐN ĐỔI PHIÊN BẢN
-# ============================================================================
 env:
-  FLUTTER_VERSION: '3.22.2'   # <-- Đổi phiên bản Flutter ổn định tại đây (ví dụ: 3.19.6, 3.24.0)
+  FLUTTER_VERSION: '3.22.2'
 
-# ============================================================================
-# KÍCH HOẠT WORKFLOW
-# - Chạy thủ công từ tab Actions (workflow_dispatch)
-# - Chạy tự động khi đẩy tag dạng v* (ví dụ v1.0.0, v1.2.3)
-# - KHÔNG chạy mỗi lần push nhánh thường
-# ============================================================================
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
 
-# ============================================================================
-# QUYỀN TỐI THẾU: chỉ đọc nội dung kho lưu trữ.
-# Job "release" sẽ được cấp quyền ghi (contents: write) riêng để tạo Release.
-# ============================================================================
 permissions:
   contents: read
 
 jobs:
-  # --------------------------------------------------------------------------
-  # JOB ANDROID: Build APK release trên Ubuntu
-  # --------------------------------------------------------------------------
   android:
     runs-on: ubuntu-latest
     steps:
-      # Lấy mã nguồn từ repo
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      # Cài Java Temurin JDK 17 (bắt buộc cho Android Gradle Plugin)
       - name: Set up Java (Temurin JDK 17)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # Cài Flutter (kênh stable, bật cache để tiết kiệm thời gian build lần sau)
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -51,29 +32,21 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # Lấy dependencies
       - name: Get dependencies
         run: flutter pub get
 
-      # Kiểm tra lỗi tĩnh (analyze)
       - name: Analyze code
         run: flutter analyze
 
-      # Chạy unit test (bao gồm test phân tích CSV)
       - name: Run tests
         run: flutter test
 
-      # Build APK chia theo ABI (arm64-v8a, armeabi-v7a, x86_64)
-      # Các file apk sẽ nằm ở build/app/outputs/flutter-apk/
       - name: Build APK (split per ABI)
         run: flutter build apk --release --split-per-abi
 
-      # Build thêm APK đầy đủ (fat APK) chứa tất cả kiến trúc trong 1 file
-      # Dùng khi bạn chỉ muốn 1 file APK duy nhất để cài (kích thước lớn hơn)
       - name: Build full APK (fat APK)
         run: flutter build apk --release
 
-      # Upload tất cả file .apk ra artifact (lưu 30 ngày)
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -82,9 +55,6 @@ jobs:
             build/app/outputs/flutter-apk/*.apk
           retention-days: 30
 
-  # --------------------------------------------------------------------------
-  # JOB WINDOWS: Build .exe trên Windows
-  # --------------------------------------------------------------------------
   windows:
     runs-on: windows-latest
     steps:
@@ -98,24 +68,19 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # Bật hỗ trợ desktop Windows
       - name: Enable Windows desktop
         run: flutter config --enable-windows-desktop
 
       - name: Get dependencies
         run: flutter pub get
 
-      # Build release cho Windows
       - name: Build Windows release
         run: flutter build windows --release
 
-      # Nén toàn bộ thư mục Release thành zip (PowerShell)
-      # Thư mục chứa: xfavorites.exe + flutter_windows.dll + các file .dll đi kèm + thư mục data
       - name: Zip Release folder
         shell: pwsh
         run: Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "XFavorites_Windows.zip"
 
-      # Upload zip Windows (lưu 30 ngày)
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
@@ -123,22 +88,16 @@ jobs:
           path: XFavorites_Windows.zip
           retention-days: 30
 
-  # --------------------------------------------------------------------------
-  # JOB RELEASE: Tự động tạo GitHub Release khi có tag v*
-  # Chỉ chạy nếu nhánh bắt đầu bằng refs/tags/v
-  # --------------------------------------------------------------------------
   release:
     needs: [android, windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
-      contents: write   # <-- Chỉ job này được phép ghi để tạo Release
+      contents: write
     steps:
-      # Tải tất cả artifact từ các job trước về máy ubuntu
       - name: Download all artifacts
         uses: actions/download-artifact@v4
 
-      # Tạo GitHub Release và đính kèm APK + zip Windows
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
