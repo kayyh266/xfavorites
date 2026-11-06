@@ -32,12 +32,22 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Create Android project files
+      - name: Remove old Android project
+        shell: bash
+        run: rm -rf android
+
+      - name: Create fresh Android project
         run: flutter create --platforms=android .
 
       - name: Remove default widget test
         shell: bash
         run: rm -f test/widget_test.dart
+
+      - name: Restore custom AndroidManifest.xml permissions
+        shell: bash
+        run: |
+          # Add permissions before </manifest>
+          sed -i 's#</manifest>#<!-- Permissions -->\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n    <uses-permission android:name="android.permission.INTERNET" />\n</manifest>#' android/app/src/main/AndroidManifest.xml
 
       - name: Get dependencies
         run: flutter pub get
