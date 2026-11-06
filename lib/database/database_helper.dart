@@ -3,6 +3,7 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/x_account.dart';
+import '../models/csv_import_result.dart';
 import '../core/constants.dart';
 
 /// Helper quản lý cơ sở dữ liệu SQLite cục bộ.
@@ -380,13 +381,13 @@ class DatabaseHelper {
     final List<Map<String, dynamic>> maps = await db.query('accounts');
     return maps.map((m) {
       return {
-        'username': m['username'] ?? '',
-        'link': m['link'] ?? '',
+        'username': (m['username'] ?? '').toString(),
+        'link': (m['link'] ?? '').toString(),
         'favorite': ((m['favorite'] ?? 0) == 1) ? 'true' : 'false',
-        'folder': m['folder'] ?? '',
-        'status': m['status'] ?? AppConstants.statusActive,
-        'added_at': m['added_at'] ?? '',
-        'last_seen_following': m['last_seen_following'] ?? '',
+        'folder': (m['folder'] ?? '').toString(),
+        'status': (m['status'] ?? AppConstants.statusActive).toString(),
+        'added_at': (m['added_at'] ?? '').toString(),
+        'last_seen_following': (m['last_seen_following'] ?? '').toString(),
       };
     }).toList();
   }

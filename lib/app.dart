@@ -11,9 +11,6 @@ class XFavoritesApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final brightness = MediaQuery.of(context).platformBrightness;
-    final isDark = brightness == Brightness.dark;
-
     return MaterialApp(
       title: 'X Favorites',
       debugShowCheckedModeBanner: false,

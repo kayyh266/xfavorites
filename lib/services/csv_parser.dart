@@ -65,7 +65,7 @@ class CsvParser {
 
       for (final col in standardColumns) {
         final idx = columnIndex[col];
-        if (idx != -1 && idx < values.length) {
+        if (idx != null && idx != -1 && idx < values.length) {
           row[col] = values[idx].trim();
         } else {
           row[col] = ''; // thiếu cột -> để trống

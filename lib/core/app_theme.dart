@@ -12,7 +12,6 @@ class AppTheme {
         primary: Color(0xFF1DA1F2), // màu xanh X (Twitter)
         secondary: Color(0xFF657786),
         surface: Color(0xFFFFFFFF),
-        background: Color(0xFFF5F8FA),
         onPrimary: Color(0xFFFFFFFF),
         onSurface: Color(0xFF0F1419),
       ),
@@ -28,7 +27,6 @@ class AppTheme {
         ),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: Color(0xFF1DA1F2),
         foregroundColor: Color(0xFFFFFFFF),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -69,7 +67,6 @@ class AppTheme {
         primary: Color(0xFF1DA1F2),
         secondary: Color(0xFF657786),
         surface: Color(0xFF15202B),
-        background: Color(0xFF0F1419),
         onPrimary: Color(0xFFFFFFFF),
         onSurface: Color(0xFFFFFFFF),
       ),
@@ -85,7 +82,6 @@ class AppTheme {
         ),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: Color(0xFF1DA1F2),
         foregroundColor: Color(0xFFFFFFFF),
       ),
       inputDecorationTheme: InputDecorationTheme(

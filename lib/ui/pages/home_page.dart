@@ -1,10 +1,8 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../models/x_account.dart';
 import '../../models/csv_import_result.dart';
 import '../../repositories/account_repository.dart';
@@ -354,7 +352,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         Expanded(
           child: ListView(
             children: [
-              _sidebarFolderItem(repo, null, 'Tất cả', repo.countAll()),
+              _sidebarFolderItem(repo, null, 'Tất cả', repo.countAll),
               _sidebarFolderItem(
                   repo, AppConstants.folderUncategorized, AppConstants.folderUncategorized,
                   repo.uncategorizedCount),

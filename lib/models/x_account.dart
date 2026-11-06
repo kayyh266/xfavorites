@@ -1,5 +1,3 @@
-import 'package:collection/collection.dart';
-
 /// Mô hình dữ liệu cho một tài khoản X (Twitter).
 ///
 /// Các trường khớp đúng định dạng CSV yêu cầu:
@@ -21,7 +19,7 @@ class XAccount {
     required this.link,
     this.favorite = false,
     this.folder,
-    this.status = AppConstants.statusActive,
+    this.status = 'active',
     this.addedAt,
     this.lastSeenFollowing,
     this.lastOpened,
@@ -76,7 +74,7 @@ class XAccount {
       link: map['link'] ?? '',
       favorite: (map['favorite'] ?? 0) == 1,
       folder: map['folder'],
-      status: map['status'] ?? AppConstants.statusActive,
+      status: map['status'] ?? 'active',
       addedAt: map['added_at'] != null ? DateTime.tryParse(map['added_at']) : null,
       lastSeenFollowing:
           map['last_seen_following'] != null ? DateTime.tryParse(map['last_seen_following']) : null,

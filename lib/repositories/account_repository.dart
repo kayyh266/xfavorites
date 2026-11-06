@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -50,6 +51,9 @@ class AccountRepository extends ChangeNotifier {
   Set<int> get selectedIds => Set.unmodifiable(_selectedIds);
 
   bool get selectionMode => _selectionMode;
+
+  /// Tổng số tài khoản.
+  int get countAll => _allAccounts.length;
 
   /// Danh sách tài khoản đã được lọc theo folder, tìm kiếm và sắp xếp.
   List<XAccount> get filteredAccounts {
@@ -235,7 +239,8 @@ class AccountRepository extends ChangeNotifier {
     await reload();
   }
 
-  Future<int> countFolder(String? folder) async {
+  /// Số lượng tài khoản trong folder (đồng bộ, không cần await).
+  int countFolder(String? folder) {
     if (folder == null || folder == AppConstants.folderUncategorized) {
       return uncategorizedCount;
     }
