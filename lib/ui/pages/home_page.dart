@@ -401,9 +401,9 @@ class _HomePageState extends ConsumerState<HomePage> {
           DropdownButton<String>(
             value: repo.sortMode,
             items: const [
-              const DropdownMenuItem<String>(value: AppConstants.sortAz, child: Text('Sắp xếp: A-Z')),
-              const DropdownMenuItem<String>(value: AppConstants.sortNewest, child: Text('Sắp xếp: Mới thêm')),
-              const DropdownMenuItem<String>(value: AppConstants.sortFavoritesFirst, child: Text('Sắp xếp: Yêu thích trước')),
+              DropdownMenuItem<String>(value: AppConstants.sortAz, child: Text('Sắp xếp: A-Z')),
+              DropdownMenuItem<String>(value: AppConstants.sortNewest, child: Text('Sắp xếp: Mới thêm')),
+              DropdownMenuItem<String>(value: AppConstants.sortFavoritesFirst, child: Text('Sắp xếp: Yêu thích trước')),
             ],
             onChanged: (value) {
               if (value != null) {
