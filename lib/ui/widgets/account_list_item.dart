@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/x_account.dart';
+import '../../core/constants.dart';
 import '../widgets/account_avatar.dart';
 
 /// Một dòng trong danh sách tài khoản.

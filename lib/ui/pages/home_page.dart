@@ -31,10 +31,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   void initState() {
     super.initState();
-    // Lắng nghe sự kiện kéo thả file (chỉ có ý nghĩa trên desktop).
-    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-      // Được xử lý bởi DropViewer bên ngoài build (xem dưới).
-    }
   }
 
   @override
@@ -57,6 +53,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 
+  /// Giữ lại để tương thích nếu sau này thêm tính năng kéo thả file trên desktop.
+  /// Hiện tại không được gọi từ UI vì đã gỡ gói desktop_drop.
   Future<void> _handleImportFromBytes(List<Uint8List> bytesList) async {
     final repo = ref.read(accountRepositoryProvider.notifier);
     int totalAdded = 0, totalUpdated = 0, totalSkipped = 0;
@@ -205,10 +203,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
         ],
       ),
-      body: DropViewer(
-        onDrop: _handleImportFromBytes,
-        child: isDesktop ? _buildDesktopLayout(repo, accounts, folders) : _buildMobileLayout(repo, accounts, folders),
-      ),
+      body: isDesktop ? _buildDesktopLayout(repo, accounts, folders) : _buildMobileLayout(repo, accounts, folders),
       floatingActionButton: !isDesktop && !repo.selectionMode
           ? FloatingActionButton.extended(
               onPressed: _handleImportCsv,
@@ -314,7 +309,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               // Danh sách
               Expanded(
                 child: accounts.isEmpty
-                    ? const Center(child: Text('Chưa có tài khoản. Kéo thả file CSV hoặc dùng nút Nhập CSV.'))
+                    ? const Center(child: Text('Chưa có tài khoản. Dùng nút Nhập CSV hoặc kéo thả file CSV vào cửa sổ.'))
                     : ListView.builder(
                         itemCount: accounts.length,
                         itemBuilder: (context, index) {
@@ -526,7 +521,6 @@ class _HomePageState extends ConsumerState<HomePage> {
       ],
       onTap: (index) {
         if (index == 1) {
-          // Chuyển sang filter yêu thích (tạm thời dùng selectedFolder=null nhưng sort=favoritesFirst)
           ref.read(accountRepositoryProvider.notifier).setSortMode(AppConstants.sortFavoritesFirst);
           ref.read(accountRepositoryProvider.notifier).setFolderFilter(null);
         } else {
