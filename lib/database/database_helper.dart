@@ -7,7 +7,12 @@ import '../core/constants.dart';
 
 /// Helper quản lý cơ sở dữ liệu SQLite cục bộ.
 ///
-/// Chạy ổn định trên cả Windows và Android. Dữ liệu chỉ lưu cục bộ, không gửi ra ngoài.
+/// - Android: dùng sqflite thông thường (databaseFactory mặc định).
+/// - Windows/Linux: dùng sqflite_common_ffi qua databaseFactoryFfi
+///   (đã được gán vào databaseFactory trong main.dart).
+///
+/// Đường dẫn database lấy từ path_provider (getApplicationDocumentsDirectory),
+/// hoạt động đúng trên cả hai nền tảng. Dữ liệu chỉ lưu cục bộ, không gửi ra ngoài.
 class DatabaseHelper {
   DatabaseHelper._privateConstructor();
 
@@ -15,7 +20,6 @@ class DatabaseHelper {
 
   static Database? _database;
 
-  /// Tên file cơ sở dữ liệu.
   static const String dbName = 'xfavorites.db';
 
   /// Lấy (hoặc tạo) đối tượng Database.
@@ -58,7 +62,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // Chèn folder mặc định "Chưa phân loại" (dùng làm nhãn hiển thị, không bắt buộc tài khoản phải có folder này)
+    // Chèn folder mặc định "Chưa phân loại" (dùng làm nhãn hiển thị)
     await db.insert('folders', {'name': AppConstants.folderUncategorized});
   }
 
@@ -279,7 +283,6 @@ class DatabaseHelper {
   /// Xóa folder. Tài khoản trong folder sẽ về null (Chưa phân loại), không bị xóa tài khoản.
   Future<int> deleteFolder(String name) async {
     Database db = await instance.database;
-    // Trả tài khoản về "Chưa phân loại" (folder = null)
     await db.update(
       'accounts',
       {'folder': null},
