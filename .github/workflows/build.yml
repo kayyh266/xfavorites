@@ -32,6 +32,13 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Create Android project files
+        run: flutter create --platforms=android .
+
+      - name: Remove default widget test
+        shell: bash
+        run: rm -f test/widget_test.dart
+
       - name: Get dependencies
         run: flutter pub get
 
