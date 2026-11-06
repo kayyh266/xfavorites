@@ -49,6 +49,12 @@ jobs:
           # Add permissions before </manifest>
           sed -i 's#</manifest>#<!-- Permissions -->\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n    <uses-permission android:name="android.permission.INTERNET" />\n</manifest>#' android/app/src/main/AndroidManifest.xml
 
+      - name: Set compileSdk to 35 for sqlite3_flutter_libs
+        shell: bash
+        run: |
+          # Replace flutter.compileSdkVersion with 35 in build.gradle
+          sed -i 's/flutter.compileSdkVersion/35/g' android/app/build.gradle
+
       - name: Get dependencies
         run: flutter pub get
 
