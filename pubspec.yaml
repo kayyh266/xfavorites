@@ -32,7 +32,7 @@ dependencies:
   collection: ^1.18.0
 
   # Kéo thả file .csv vào cửa sổ (Windows/macOS/Linux)
-  desktop_drop: ^1.1.0
+  desktop_drop: ^1.0.0
 
 dev_dependencies:
   flutter_test:
@@ -41,6 +41,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # Icon mặc định sẽ được tạo bằng flutter_launcher_icons (xem hướng dẫn build)
   assets:
     - assets/
