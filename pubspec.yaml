@@ -31,9 +31,6 @@ dependencies:
   intl: ^0.18.1
   collection: ^1.18.0
 
-  # Kéo thả file .csv vào cửa sổ (Windows/macOS/Linux)
-  desktop_drop: ^1.0.0
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
