@@ -1,0 +1,46 @@
+name: xfavorites
+description: Ứng dụng quản lý danh sách tài khoản X (Twitter) yêu thích, chạy trên Windows và Android từ một codebase.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+
+  # SQLite cục bộ, chạy ổn định trên Windows và Android
+  sqflite: ^2.3.0
+  path: ^1.9.0
+  path_provider: ^2.1.1
+
+  # Chọn file CSV (file picker)
+  file_picker: ^6.1.1
+
+  # Mở link trang cá nhân bằng trình duyệt ngoài ứng dụng
+  url_launcher: ^6.2.1
+
+  # Quản lý trạng thái
+  flutter_riverpod: ^2.4.9
+
+  # Xử lý ngày tháng, collection helpers
+  intl: ^0.18.1
+  collection: ^1.18.0
+
+  # Kéo thả file .csv vào cửa sổ (Windows/macOS/Linux)
+  desktop_drop: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  # Icon mặc định sẽ được tạo bằng flutter_launcher_icons (xem hướng dẫn build)
+  assets:
+    - assets/

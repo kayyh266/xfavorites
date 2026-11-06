@@ -1,0 +1,63 @@
+def localProperties = new File(rootProject.projectDir, "local.properties")
+def properties = new Properties()
+localProperties.withReader("UTF-8") { reader -> properties.load(reader) }
+
+def sdkDir = properties.getProperty("sdk.dir") ?: System.env.ANDROID_HOME ?: System.env.ANDROID_SDK_ROOT
+def buildToolsVersion = "34.0.0"
+def compileSdkVersion = 34
+
+android {
+    namespace "com.example.xfavorites"
+    compileSdk compileSdkVersion
+
+    defaultConfig {
+        applicationId "com.example.xfavorites"
+        minSdkVersion 21
+        targetSdkVersion 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    // ========================================================================
+    // PHƯƠNG ÁN B (TÙY CHỌN): Ký APK bằng keystore riêng
+    // Nếu file android/key.properties TÒN TẠI, phần signingConfigs sau sẽ được áp dụng.
+    // Nếu KHÔNG tồn tại (phương án A mặc định), Gradle sẽ dùng khóa debug mặc định
+    // và APK chỉ dùng cho cài đặt cá nhân, không đẩy lên Google Play.
+    // ========================================================================
+    def keystorePropertiesFile = rootProject.file("key.properties")
+    def keystoreProperties = new Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+
+        signingConfigs {
+            release {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // Nếu keystoreProperties tồn tại, dòng dưới sẽ bật ký release.
+            // Nếu không, Gradle sẽ dùng cấu hình mặc định (debug) của Flutter.
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+}
+
+flutter {
+    source "../.."
+}
+
+dependencies {
+    testImplementation "junit:junit:4.13.2"
+    androidTestImplementation "androidx.test.ext:junit:1.1.5"
+    androidTestImplementation "androidx.test.espresso:espresso-core:3.5.1"
+}

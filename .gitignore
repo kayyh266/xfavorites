@@ -1,0 +1,44 @@
+#---------------------------------------------------------------------------
+# .gitignore chuẩn cho dự án Flutter (X Favorites)
+#---------------------------------------------------------------------------
+
+# Build artifacts (Flutter tạo lại khi build)
+/build/
+/.flutter-plugins
+/.flutter-plugins-dependencies
+
+# Dart/Flutter tooling
+.dart_tool/
+.packages
+.pub/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+.env
+
+# Logs
+*.log
+
+#---------------------------------------------------------------------------
+# Ký APK - TUYỆT ĐỐI KHÔNG COMMIT VÀO REPO
+#---------------------------------------------------------------------------
+android/key.properties
+*.jks
+*.keystore
+*.keys
+
+#---------------------------------------------------------------------------
+# Installer / package tạm
+#---------------------------------------------------------------------------
+*.zip
+*.msi
+*.exe
