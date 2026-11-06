@@ -306,7 +306,7 @@ class AccountRepository extends ChangeNotifier {
       return const CsvImportResult(added: 0, updated: 0, skipped: 0);
     }
 
-    final bytes = result.files.single.bytes! as Uint8List;
+    final bytes = result.files.single.bytes!;
     final rows = CsvParser.parseBytes(bytes);
     final importResult = await _db.importFromCsv(rows);
     await reload();

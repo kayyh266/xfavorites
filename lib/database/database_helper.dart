@@ -153,7 +153,6 @@ class DatabaseHelper {
   /// Xóa nhiều tài khoản theo danh sách id. Trả về tổng số dòng bị ảnh hưởng.
   Future<int> deleteAccounts(List<int> ids) async {
     if (ids.isEmpty) return 0;
-    Database db = await instance.database;
     int total = 0;
     for (final id in ids) {
       total += await deleteAccount(id);
@@ -208,7 +207,6 @@ class DatabaseHelper {
   /// Di chuyển nhiều tài khoản vào folder.
   Future<int> setFolderForAccounts(List<int> ids, String? folder) async {
     if (ids.isEmpty) return 0;
-    Database db = await instance.database;
     int total = 0;
     for (final id in ids) {
       total += await setFolder(id, folder);

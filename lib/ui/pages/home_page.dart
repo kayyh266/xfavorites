@@ -1,10 +1,7 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:file_picker/file_picker.dart';
 import '../../models/x_account.dart';
-import '../../models/csv_import_result.dart';
 import '../../repositories/account_repository.dart';
 import '../../providers/repository_provider.dart';
 import '../../core/constants.dart';
@@ -47,28 +44,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.message)),
-      );
-    }
-  }
-
-  /// Giữ lại để tương thích nếu sau này thêm tính năng kéo thả file trên desktop.
-  /// Hiện tại không được gọi từ UI vì đã gỡ gói desktop_drop.
-  Future<void> _handleImportFromBytes(List<Uint8List> bytesList) async {
-    final repo = ref.read(accountRepositoryProvider.notifier);
-    int totalAdded = 0, totalUpdated = 0, totalSkipped = 0;
-    for (final bytes in bytesList) {
-      final result = await repo.importCsvFromBytes(bytes);
-      totalAdded += result.added;
-      totalUpdated += result.updated;
-      totalSkipped += result.skipped;
-    }
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Thêm $totalAdded mới, cập nhật $totalUpdated, bỏ qua $totalSkipped trùng',
-          ),
-        ),
       );
     }
   }

@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import '../models/x_account.dart';
-import '../core/constants.dart';
 
 /// Chuẩn bị dữ liệu xuất CSV và mã hóa UTF-8 có BOM (để Excel mở không lỗi font).
 class CsvExport {
