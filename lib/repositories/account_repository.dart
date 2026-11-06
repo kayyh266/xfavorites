@@ -22,14 +22,19 @@ class AccountRepository extends ChangeNotifier {
 
   // Trạng thái lọc / tìm kiếm / sắp xếp.
   String? _selectedFolder;
+  bool _favoritesOnly = false;
   String _searchQuery = '';
   String _sortMode = AppConstants.sortAz;
+
+  /// Lỗi khi tải dữ liệu ban đầu (null nếu không có lỗi).
+  String? _loadError;
 
   // Chế độ chọn nhiều.
   final Set<int> _selectedIds = {};
   bool _selectionMode = false;
 
   AccountRepository() {
+    // Không await: lỗi được bắt bên trong _load và lưu vào _loadError.
     _load();
   }
 
@@ -43,6 +48,9 @@ class AccountRepository extends ChangeNotifier {
 
   String? get selectedFolder => _selectedFolder;
 
+  /// Chỉ hiển thị tài khoản yêu thích hay không.
+  bool get favoritesOnly => _favoritesOnly;
+
   String get searchQuery => _searchQuery;
 
   String get sortMode => _sortMode;
@@ -51,12 +59,18 @@ class AccountRepository extends ChangeNotifier {
 
   bool get selectionMode => _selectionMode;
 
+  /// Lỗi tải dữ liệu (dùng để hiển thị trên giao diện).
+  String? get loadError => _loadError;
+
   /// Tổng số tài khoản.
   int get countAll => _allAccounts.length;
 
-  /// Danh sách tài khoản đã được lọc theo folder, tìm kiếm và sắp xếp.
+  /// Danh sách tài khoản đã được lọc theo folder, yêu thích, tìm kiếm và sắp xếp.
   List<XAccount> get filteredAccounts {
     var result = _allAccounts.where((acc) {
+      // Lọc yêu thích
+      if (_favoritesOnly && !acc.favorite) return false;
+
       // Lọc folder
       if (_selectedFolder != null) {
         if (_selectedFolder == AppConstants.folderUncategorized) {
@@ -115,8 +129,13 @@ class AccountRepository extends ChangeNotifier {
   // =========================================================================
 
   Future<void> _load() async {
-    _allAccounts = await _db.getAccounts();
-    _folders = await _db.getFolders();
+    try {
+      _allAccounts = await _db.getAccounts();
+      _folders = await _db.getFolders();
+      _loadError = null;
+    } catch (e) {
+      _loadError = 'Không thể tải dữ liệu: $e';
+    }
     notifyListeners();
   }
 
@@ -129,8 +148,28 @@ class AccountRepository extends ChangeNotifier {
   // Lọc / tìm kiếm / sắp xếp
   // =========================================================================
 
+  /// Lọc theo folder. Đồng thời tắt lọc "chỉ yêu thích".
   void setFolderFilter(String? folder) {
     _selectedFolder = folder;
+    _favoritesOnly = false;
+    _clearSelection();
+    notifyListeners();
+  }
+
+  /// Bật/tắt lọc "chỉ yêu thích".
+  ///
+  /// Khi bật, bỏ lọc folder để hiển thị toàn bộ tài khoản yêu thích.
+  void setFavoritesOnly(bool value) {
+    _favoritesOnly = value;
+    if (value) _selectedFolder = null;
+    _clearSelection();
+    notifyListeners();
+  }
+
+  /// Bỏ mọi bộ lọc (Tất cả).
+  void selectAll() {
+    _selectedFolder = null;
+    _favoritesOnly = false;
     _clearSelection();
     notifyListeners();
   }
@@ -220,17 +259,47 @@ class AccountRepository extends ChangeNotifier {
   // Folder
   // =========================================================================
 
-  Future<bool> addFolder(String name) async {
-    final success = await _db.addFolder(name);
-    if (success) {
-      await reload();
+  /// Thêm folder mới. Trả về null nếu thành công, hoặc thông báo lỗi.
+  Future<String?> addFolder(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      return 'Tên folder không được để trống';
     }
-    return success;
+    if (trimmed.toLowerCase() == AppConstants.folderUncategorized.toLowerCase()) {
+      return 'Không thể dùng tên "${AppConstants.folderUncategorized}" cho folder mới';
+    }
+    if (_folders.any((f) => f.toLowerCase() == trimmed.toLowerCase())) {
+      return 'Folder "$trimmed" đã tồn tại';
+    }
+
+    final success = await _db.addFolder(trimmed);
+    if (!success) {
+      return 'Folder "$trimmed" đã tồn tại';
+    }
+    await reload();
+    return null;
   }
 
-  Future<void> renameFolder(String oldName, String newName) async {
-    await _db.renameFolder(oldName, newName);
+  /// Đổi tên folder. Trả về null nếu thành công, hoặc thông báo lỗi.
+  Future<String?> renameFolder(String oldName, String newName) async {
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty) {
+      return 'Tên folder không được để trống';
+    }
+    if (trimmed.toLowerCase() == AppConstants.folderUncategorized.toLowerCase()) {
+      return 'Không thể dùng tên "${AppConstants.folderUncategorized}" cho folder';
+    }
+    if (trimmed.toLowerCase() != oldName.toLowerCase() &&
+        _folders.any((f) => f.toLowerCase() == trimmed.toLowerCase())) {
+      return 'Folder "$trimmed" đã tồn tại';
+    }
+
+    final success = await _db.renameFolder(oldName, trimmed);
+    if (!success) {
+      return 'Không thể đổi tên folder "$oldName"';
+    }
     await reload();
+    return null;
   }
 
   Future<void> deleteFolder(String name) async {
@@ -294,27 +363,49 @@ class AccountRepository extends ChangeNotifier {
   // =========================================================================
 
   /// Chọn file CSV bằng file_picker, phân tích và nhập vào CSDL.
-  /// Trả về kết quả nhập để hiển thị thông báo.
-  Future<CsvImportResult> importCsvFromPicker() async {
+  ///
+  /// Trả về `null` khi người dùng hủy chọn file (không hiện thông báo).
+  /// Ném exception với thông điệp tiếng Việt khi có lỗi thật.
+  Future<CsvImportResult?> importCsvFromPicker() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.any,
-      allowedExtensions: ['csv'],
+      allowMultiple: false,
+      withData: true,
     );
 
-    if (result == null || result.files.single.bytes == null) {
-      return const CsvImportResult(added: 0, updated: 0, skipped: 0);
+    // Người dùng hủy chọn file.
+    if (result == null || result.files.isEmpty) return null;
+
+    final picked = result.files.single;
+    final fileName = picked.name.toLowerCase();
+    if (!fileName.endsWith('.csv') && !fileName.endsWith('.txt')) {
+      throw Exception('Vui lòng chọn file .csv');
     }
 
-    final bytes = result.files.single.bytes!;
-    final rows = CsvParser.parseBytes(bytes);
-    final importResult = await _db.importFromCsv(rows);
-    await reload();
-    return importResult;
+    Uint8List? bytes = picked.bytes;
+    if (bytes == null && picked.path != null) {
+      bytes = await File(picked.path!).readAsBytes();
+    }
+    if (bytes == null) {
+      throw Exception(
+        'Không đọc được nội dung file "${picked.name}". Vui lòng thử lại với file .csv khác.',
+      );
+    }
+
+    return importCsvFromBytes(bytes);
   }
 
   /// Nhập CSV từ dữ liệu bytes (dùng cho kéo thả trên desktop).
   Future<CsvImportResult> importCsvFromBytes(Uint8List bytes) async {
+    if (bytes.isEmpty) {
+      throw Exception('File CSV rỗng.');
+    }
+
     final rows = CsvParser.parseBytes(bytes);
+    if (rows.isEmpty) {
+      throw Exception('Không tìm thấy dữ liệu hợp lệ trong file CSV.');
+    }
+
     final importResult = await _db.importFromCsv(rows);
     await reload();
     return importResult;
@@ -344,5 +435,4 @@ class AccountRepository extends ChangeNotifier {
     final csvString = CsvExport.toCsvString(_allAccounts);
     return CsvExport.toUtf8WithBom(csvString);
   }
-
 }

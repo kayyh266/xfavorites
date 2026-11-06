@@ -1,11 +1,15 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../models/csv_import_result.dart';
 import '../../models/x_account.dart';
 import '../../repositories/account_repository.dart';
 import '../../providers/repository_provider.dart';
 import '../../core/constants.dart';
+import '../dialogs/import_result_dialog.dart';
 import '../widgets/account_list_item.dart';
+import '../widgets/desktop_drop_viewer.dart';
 import '../widgets/filter_chip_row.dart';
 import '../dialogs/folder_dialog.dart';
 
@@ -21,9 +25,12 @@ class _HomePageState extends ConsumerState<HomePage> {
   final TextEditingController _searchController = TextEditingController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey();
 
-  @override
-  void initState() {
-    super.initState();
+  /// Chỉ bật kéo thả file trên desktop (Windows/Linux/macOS).
+  bool get _supportsDragAndDrop {
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.macOS;
   }
 
   @override
@@ -36,32 +43,91 @@ class _HomePageState extends ConsumerState<HomePage> {
   // Hành động
   // -------------------------------------------------------------------------
 
+  /// Mở hộp chọn file CSV rồi nhập dữ liệu.
   Future<void> _handleImportCsv() async {
-    final repo = ref.read(accountRepositoryProvider.notifier);
-    final result = await repo.importCsvFromPicker();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.message)),
-      );
+    await _runCsvImport(() {
+      final repo = ref.read(accountRepositoryProvider.notifier);
+      return repo.importCsvFromPicker();
+    });
+  }
+
+  /// Xử lý file CSV được kéo thả trên desktop.
+  Future<void> _handleDroppedFile(Uint8List bytes, String fileName) async {
+    final lowerName = fileName.toLowerCase();
+    if (!lowerName.endsWith('.csv') && !lowerName.endsWith('.txt')) {
+      _showMessage('Vui lòng chọn file .csv');
+      return;
     }
+
+    await _runCsvImport(() {
+      final repo = ref.read(accountRepositoryProvider.notifier);
+      return repo.importCsvFromBytes(bytes);
+    });
+  }
+
+  /// Chạy một tác vụ nhập CSV, hiện tiến trình và hiện kết quả / lỗi.
+  ///
+  /// Dùng chung cho nút Nhập CSV (FAB, menu, toolbar desktop) và kéo thả file.
+  Future<void> _runCsvImport(Future<CsvImportResult?> Function() task) async {
+    var dialogOpen = true;
+
+    // Hiện tiến trình trong lúc đọc file / ghi CSDL.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _ImportProgressDialog(),
+    );
+
+    try {
+      final result = await task();
+      if (!mounted) return;
+
+      if (dialogOpen) {
+        Navigator.of(context, rootNavigator: true).pop();
+        dialogOpen = false;
+      }
+
+      // Người dùng hủy chọn file -> không thông báo.
+      if (result == null) return;
+
+      await showDialog<void>(
+        context: context,
+        builder: (_) => ImportResultDialog(result: result),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      if (dialogOpen) {
+        Navigator.of(context, rootNavigator: true).pop();
+        dialogOpen = false;
+      }
+
+      _showMessage('Nhập CSV thất bại: ${_describeError(e)}');
+    }
+  }
+
+  /// Bỏ tiền tố "Exception: " cho thông báo lỗi dễ đọc.
+  String _describeError(Object error) {
+    final text = error.toString();
+    const prefix = 'Exception: ';
+    return text.startsWith(prefix) ? text.substring(prefix.length) : text;
   }
 
   Future<void> _handleExportCsv() async {
     final repo = ref.read(accountRepositoryProvider.notifier);
     try {
       final path = await repo.exportCsvToFile();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đã xuất CSV: $path')),
-        );
-      }
+      _showMessage('Đã xuất CSV: $path');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Xuất CSV thất bại: $e')),
-        );
-      }
+      _showMessage('Xuất CSV thất bại: $e');
     }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   Future<void> _openAccountUrl(String link) async {
@@ -71,23 +137,19 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 
-  void _createFolder() async {
+  Future<void> _createFolder() async {
     final repo = ref.read(accountRepositoryProvider.notifier);
     final name = await showDialog<String>(
       context: context,
       builder: (context) => const FolderDialog(title: 'Tạo folder mới'),
     );
-    if (name != null && name.trim().isNotEmpty) {
-      final success = await repo.addFolder(name.trim());
-      if (mounted && !success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Folder đã tồn tại')),
-        );
-      }
-    }
+    if (name == null || name.trim().isEmpty) return;
+
+    final error = await repo.addFolder(name.trim());
+    if (error != null) _showMessage(error);
   }
 
-  void _renameFolder(String oldName) async {
+  Future<void> _renameFolder(String oldName) async {
     final repo = ref.read(accountRepositoryProvider.notifier);
     final newName = await showDialog<String>(
       context: context,
@@ -96,9 +158,14 @@ class _HomePageState extends ConsumerState<HomePage> {
         initialValue: oldName,
       ),
     );
-    if (newName != null && newName.trim().isNotEmpty && newName.trim() != oldName) {
-      await repo.renameFolder(oldName, newName.trim());
+    if (newName == null ||
+        newName.trim().isEmpty ||
+        newName.trim() == oldName) {
+      return;
     }
+
+    final error = await repo.renameFolder(oldName, newName.trim());
+    if (error != null) _showMessage(error);
   }
 
   Future<void> _deleteFolder(String name) async {
@@ -155,7 +222,31 @@ class _HomePageState extends ConsumerState<HomePage> {
     final folders = ref.watch(foldersProvider);
     final isDesktop = MediaQuery.of(context).size.width >= AppConstants.desktopBreakpoint;
 
-    return Scaffold(
+    Widget body = isDesktop
+        ? _buildDesktopLayout(repo, accounts, folders)
+        : _buildMobileLayout(repo, accounts, folders);
+
+    // Hiện lỗi tải dữ liệu thay vì im lặng.
+    if (repo.loadError != null) {
+      body = Column(
+        children: [
+          MaterialBanner(
+            leading: const Icon(Icons.error_outline),
+            content: Text(repo.loadError!),
+            actions: [
+              TextButton(
+                onPressed: () =>
+                    ref.read(accountRepositoryProvider.notifier).reload(),
+                child: const Text('Thử lại'),
+              ),
+            ],
+          ),
+          Expanded(child: body),
+        ],
+      );
+    }
+
+    final scaffold = Scaffold(
       key: _scaffoldKey,
       appBar: AppBar(
         title: const Text('X Favorites'),
@@ -174,7 +265,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
         ],
       ),
-      body: isDesktop ? _buildDesktopLayout(repo, accounts, folders) : _buildMobileLayout(repo, accounts, folders),
+      body: body,
       floatingActionButton: !isDesktop && !repo.selectionMode
           ? FloatingActionButton.extended(
               onPressed: _handleImportCsv,
@@ -184,6 +275,17 @@ class _HomePageState extends ConsumerState<HomePage> {
           : null,
       bottomNavigationBar: !isDesktop ? _buildBottomNav(repo) : null,
     );
+
+    // Trên desktop, bọc toàn bộ trang để nhận file kéo thả.
+    if (_supportsDragAndDrop) {
+      return DropViewer(
+        onDropFile: _handleDroppedFile,
+        onError: _showMessage,
+        child: scaffold,
+      );
+    }
+
+    return scaffold;
   }
 
   // =========================================================================
@@ -220,8 +322,11 @@ class _HomePageState extends ConsumerState<HomePage> {
         FilterChipRow(
           folders: folders,
           selectedFolder: repo.selectedFolder,
+          favoritesOnly: repo.favoritesOnly,
           onFolderSelected: (folder) =>
               ref.read(accountRepositoryProvider.notifier).setFolderFilter(folder),
+          onFavoritesSelected: () =>
+              ref.read(accountRepositoryProvider.notifier).setFavoritesOnly(true),
         ),
 
         // Thanh chọn nhiều (hiện khi đang chọn)
@@ -309,6 +414,8 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildDesktopSidebar(AccountRepository repo, List<String> folders) {
+    final notifier = ref.read(accountRepositoryProvider.notifier);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -325,12 +432,55 @@ class _HomePageState extends ConsumerState<HomePage> {
         Expanded(
           child: ListView(
             children: [
-              _sidebarFolderItem(repo, null, 'Tất cả', repo.countAll),
-              _sidebarFolderItem(
-                  repo, AppConstants.folderUncategorized, AppConstants.folderUncategorized,
-                  repo.uncategorizedCount),
+              _sidebarTile(
+                icon: Icons.people,
+                label: AppConstants.filterAll,
+                count: repo.countAll,
+                selected: !repo.favoritesOnly && repo.selectedFolder == null,
+                onTap: notifier.selectAll,
+              ),
+              _sidebarTile(
+                icon: Icons.star,
+                label: AppConstants.filterFavorites,
+                count: repo.favoriteCount,
+                selected: repo.favoritesOnly,
+                onTap: () => notifier.setFavoritesOnly(true),
+              ),
+              _sidebarTile(
+                icon: !repo.favoritesOnly &&
+                        repo.selectedFolder == AppConstants.folderUncategorized
+                    ? Icons.folder
+                    : Icons.folder_outlined,
+                label: AppConstants.folderUncategorized,
+                count: repo.uncategorizedCount,
+                selected: !repo.favoritesOnly &&
+                    repo.selectedFolder == AppConstants.folderUncategorized,
+                onTap: () =>
+                    notifier.setFolderFilter(AppConstants.folderUncategorized),
+              ),
               for (final folder in folders)
-                _sidebarFolderItem(repo, folder, folder, repo.countFolder(folder)),
+                _sidebarTile(
+                  icon: !repo.favoritesOnly && repo.selectedFolder == folder
+                      ? Icons.folder
+                      : Icons.folder_outlined,
+                  label: folder,
+                  count: repo.countFolder(folder),
+                  selected: !repo.favoritesOnly && repo.selectedFolder == folder,
+                  onTap: () => notifier.setFolderFilter(folder),
+                  trailing: PopupMenuButton<String>(
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(value: 'rename', child: Text('Đổi tên')),
+                      const PopupMenuItem(value: 'delete', child: Text('Xóa')),
+                    ],
+                    onSelected: (value) {
+                      if (value == 'rename') {
+                        _renameFolder(folder);
+                      } else if (value == 'delete') {
+                        _deleteFolder(folder);
+                      }
+                    },
+                  ),
+                ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.add_circle_outline),
@@ -344,31 +494,21 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _sidebarFolderItem(AccountRepository repo, String? folder, String label, int count) {
-    final isSelected = repo.selectedFolder == folder;
+  Widget _sidebarTile({
+    required IconData icon,
+    required String label,
+    required int count,
+    required bool selected,
+    required VoidCallback onTap,
+    Widget? trailing,
+  }) {
     return ListTile(
-      leading: Icon(isSelected ? Icons.folder : Icons.folder_outlined),
+      leading: Icon(icon),
       title: Text('$label ($count)'),
-      selected: isSelected,
+      selected: selected,
       selectedTileColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-      onTap: () {
-        ref.read(accountRepositoryProvider.notifier).setFolderFilter(folder);
-      },
-      trailing: folder != null && folder != AppConstants.folderUncategorized
-          ? PopupMenuButton<String>(
-              itemBuilder: (context) => [
-                const PopupMenuItem(value: 'rename', child: Text('Đổi tên')),
-                const PopupMenuItem(value: 'delete', child: Text('Xóa')),
-              ],
-              onSelected: (value) {
-                if (value == 'rename') {
-                  _renameFolder(folder);
-                } else if (value == 'delete') {
-                  _deleteFolder(folder);
-                }
-              },
-            )
-          : null,
+      onTap: onTap,
+      trailing: trailing,
     );
   }
 
@@ -444,8 +584,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             tooltip: 'Di chuyển sang folder',
             itemBuilder: (context) => [
               const PopupMenuItem(
-                value: 'uncategorized',
-                child: Text('Chưa phân loại'),
+                value: AppConstants.folderUncategorized,
+                child: Text(AppConstants.folderUncategorized),
               ),
               for (final folder in ref.watch(foldersProvider))
                 PopupMenuItem(
@@ -484,19 +624,19 @@ class _HomePageState extends ConsumerState<HomePage> {
   // =========================================================================
 
   Widget _buildBottomNav(AccountRepository repo) {
+    final notifier = ref.read(accountRepositoryProvider.notifier);
+
     return BottomNavigationBar(
-      currentIndex: 0,
+      currentIndex: repo.favoritesOnly ? 1 : 0,
       items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Tất cả'),
-        BottomNavigationBarItem(icon: Icon(Icons.star), label: 'Yêu thích'),
+        BottomNavigationBarItem(icon: Icon(Icons.people), label: AppConstants.filterAll),
+        BottomNavigationBarItem(icon: Icon(Icons.star), label: AppConstants.filterFavorites),
       ],
       onTap: (index) {
         if (index == 1) {
-          ref.read(accountRepositoryProvider.notifier).setSortMode(AppConstants.sortFavoritesFirst);
-          ref.read(accountRepositoryProvider.notifier).setFolderFilter(null);
+          notifier.setFavoritesOnly(true);
         } else {
-          ref.read(accountRepositoryProvider.notifier).setSortMode(AppConstants.sortAz);
-          ref.read(accountRepositoryProvider.notifier).setFolderFilter(null);
+          notifier.selectAll();
         }
       },
     );
@@ -560,5 +700,25 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (confirmed == true && mounted) {
       await ref.read(accountRepositoryProvider.notifier).deleteAccount(acc.id!);
     }
+  }
+}
+
+/// Dialog hiện tiến trình khi đang đọc file / ghi CSDL.
+class _ImportProgressDialog extends StatelessWidget {
+  const _ImportProgressDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return const AlertDialog(
+      title: Text('Đang nhập CSV'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LinearProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Đang đọc file và cập nhật dữ liệu...'),
+        ],
+      ),
+    );
   }
 }

@@ -21,7 +21,25 @@ class DatabaseHelper {
 
   static Database? _database;
 
+  /// Đường dẫn DB tùy chọn (dùng cho test, ví dụ inMemoryDatabasePath).
+  /// Khi null, dùng file xfavorites.db trong thư mục Documents của ứng dụng.
+  static String? databasePathOverride;
+
   static const String dbName = 'xfavorites.db';
+
+  /// Phiên bản CSDL hiện tại.
+  ///
+  /// v2: bỏ folder mặc định "Chưa phân loại" khỏi bảng folders.
+  static const int dbVersion = 2;
+
+  /// Cấu hình đường dẫn DB cho test.
+  ///
+  /// Gọi [close] trước nếu đang có kết nối mở. Truyền [path] = null để trở lại
+  /// đường dẫn mặc định.
+  static void configureForTesting({String? path}) {
+    databasePathOverride = path;
+    _database = null;
+  }
 
   /// Lấy (hoặc tạo) đối tượng Database.
   Future<Database> get database async {
@@ -32,16 +50,27 @@ class DatabaseHelper {
 
   /// Khởi tạo cơ sở dữ liệu và tạo bảng nếu chưa tồn tại.
   Future<Database> _initDatabase() async {
-    Directory documentsDir = await getApplicationDocumentsDirectory();
-    String path = join(documentsDir.path, dbName);
+    final String path;
+    if (databasePathOverride != null) {
+      path = databasePathOverride!;
+    } else {
+      final Directory documentsDir = await getApplicationDocumentsDirectory();
+      path = join(documentsDir.path, dbName);
+    }
+
     return await openDatabase(
       path,
-      version: 1,
+      version: dbVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+      onOpen: _onOpen,
     );
   }
 
   /// Tạo bảng accounts và bảng folders khi cơ sở dữ liệu được tạo lần đầu.
+  ///
+  /// Không chèn sẵn "Chưa phân loại": đây là mục cố định trên giao diện,
+  /// không phải một folder thật trong CSDL.
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
       CREATE TABLE accounts (
@@ -62,15 +91,47 @@ class DatabaseHelper {
         name TEXT PRIMARY KEY
       )
     ''');
+  }
 
-    // Chèn folder mặc định "Chưa phân loại" (dùng làm nhãn hiển thị)
-    await db.insert('folders', {'name': AppConstants.folderUncategorized});
+  /// Nâng cấp CSDL từ phiên bản cũ.
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _removeUncategorizedFolder(db);
+    }
+  }
+
+  /// Dọn dẹp mỗi lần mở CSDL (phòng trường hợp dữ liệu cũ còn sót lại).
+  Future<void> _onOpen(Database db) async {
+    await _removeUncategorizedFolder(db);
+  }
+
+  /// Xóa folder "Chưa phân loại" khỏi bảng folders và đưa các tài khoản
+  /// đang trỏ tới folder này về null.
+  static Future<void> _removeUncategorizedFolder(Database db) async {
+    final target = AppConstants.folderUncategorized.toLowerCase();
+
+    final folderRows = await db.query('folders', columns: ['name']);
+    for (final row in folderRows) {
+      final name = (row['name'] ?? '').toString();
+      if (name.trim().toLowerCase() == target) {
+        await db.delete('folders', where: 'name = ?', whereArgs: [name]);
+      }
+    }
+
+    await db.update(
+      'accounts',
+      {'folder': null},
+      where: 'folder = ?',
+      whereArgs: [AppConstants.folderUncategorized],
+    );
   }
 
   /// Đóng cơ sở dữ liệu.
   Future<void> close() async {
-    Database db = await instance.database;
-    await db.close();
+    final db = _database;
+    if (db != null) {
+      await db.close();
+    }
     _database = null;
   }
 
@@ -234,7 +295,8 @@ class DatabaseHelper {
   /// Lấy tổng số tài khoản.
   Future<int> countAll() async {
     Database db = await instance.database;
-    final List<Map<String, dynamic>> maps = await db.rawQuery('SELECT COUNT(*) as cnt FROM accounts');
+    final List<Map<String, dynamic>> maps =
+        await db.rawQuery('SELECT COUNT(*) as cnt FROM accounts');
     return int.tryParse(maps.first['cnt']?.toString() ?? '0') ?? 0;
   }
 
@@ -242,41 +304,88 @@ class DatabaseHelper {
   // Quản lý folder
   // -------------------------------------------------------------------------
 
-  /// Lấy tất cả tên folder.
+  /// Lấy tất cả tên folder, đã loại bỏ "Chưa phân loại" và sắp xếp theo tên.
   Future<List<String>> getFolders() async {
     Database db = await instance.database;
     final List<Map<String, dynamic>> maps = await db.query('folders');
-    return maps.map((m) => m['name'] as String).toList();
+    final target = AppConstants.folderUncategorized.toLowerCase();
+
+    final names = maps
+        .map((m) => (m['name'] ?? '').toString())
+        .where((name) => name.trim().isNotEmpty)
+        .where((name) => name.trim().toLowerCase() != target)
+        .toList();
+
+    names.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return names;
   }
 
-  /// Thêm một folder mới. Trả về true nếu thành công (folder chưa tồn tại).
+  /// Thêm một folder mới. Trả về true nếu thành công.
+  ///
+  /// Từ chối tên rỗng, tên "Chưa phân loại" và tên đã tồn tại
+  /// (không phân biệt hoa thường).
   Future<bool> addFolder(String name) async {
-    if (name.trim().isEmpty) return false;
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return false;
+    if (trimmed.toLowerCase() == AppConstants.folderUncategorized.toLowerCase()) {
+      return false;
+    }
+
     Database db = await instance.database;
+    final existing = await db.query(
+      'folders',
+      where: 'name = ? COLLATE NOCASE',
+      whereArgs: [trimmed],
+      limit: 1,
+    );
+    if (existing.isNotEmpty) return false;
+
     try {
-      await db.insert('folders', {'name': name.trim()});
+      await db.insert('folders', {'name': trimmed});
       return true;
     } catch (_) {
       return false; // đã tồn tại (PRIMARY KEY constraint)
     }
   }
 
-  /// Đổi tên folder. Tài khoản trong folder giữ nguyên (tham chiếu theo tên, nên cần cập nhật).
-  Future<int> renameFolder(String oldName, String newName) async {
-    if (newName.trim().isEmpty) return 0;
+  /// Đổi tên folder. Trả về true nếu thành công.
+  ///
+  /// Từ chối tên rỗng, tên "Chưa phân loại" và tên trùng với folder khác.
+  Future<bool> renameFolder(String oldName, String newName) async {
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty) return false;
+    if (trimmed.toLowerCase() == AppConstants.folderUncategorized.toLowerCase()) {
+      return false;
+    }
+
     Database db = await instance.database;
-    await db.update(
-      'accounts',
-      {'folder': newName.trim()},
-      where: 'folder = ?',
-      whereArgs: [oldName],
-    );
-    return await db.update(
+
+    final existing = await db.query(
       'folders',
-      {'name': newName.trim()},
-      where: 'name = ?',
-      whereArgs: [oldName],
+      where: 'name = ? COLLATE NOCASE',
+      whereArgs: [trimmed],
+      limit: 1,
     );
+    if (existing.isNotEmpty && existing.first['name'] != oldName) {
+      return false;
+    }
+
+    await db.transaction((txn) async {
+      await txn.update(
+        'accounts',
+        {'folder': trimmed},
+        where: 'folder = ?',
+        whereArgs: [oldName],
+      );
+      await txn.update(
+        'folders',
+        {'name': trimmed},
+        where: 'name = ?',
+        whereArgs: [oldName],
+      );
+    });
+
+    return true;
   }
 
   /// Xóa folder. Tài khoản trong folder sẽ về null (Chưa phân loại), không bị xóa tài khoản.
@@ -301,76 +410,134 @@ class DatabaseHelper {
 
   /// Nhập danh sách tài khoản từ CSV. Gộp theo username (không phân biệt hoa thường).
   /// Giữ nguyên favorite/folder đã có trong app, chỉ thêm tên mới và cập nhật status.
+  ///
+  /// - Folder khác rỗng trong CSV được tự động thêm vào bảng folders.
+  /// - Tài khoản trùng username ngay trong cùng file CSV cũng được gộp.
+  /// - Toàn bộ thao tác chạy trong một transaction.
   Future<CsvImportResult> importFromCsv(List<Map<String, String>> rows) async {
-    if (rows.isEmpty) return const CsvImportResult(added: 0, updated: 0, skipped: 0);
+    if (rows.isEmpty) {
+      return const CsvImportResult(added: 0, updated: 0, skipped: 0);
+    }
 
     Database db = await instance.database;
 
-    // Lấy tất cả tài khoản hiện có để so sánh trùng lặp.
-    final existingMaps = await db.query('accounts');
-    final existingAccounts = existingMaps.map((m) => XAccount.fromMap(m)).toList();
-    final Map<String, XAccount> existingByNormalized = {};
-    for (final acc in existingAccounts) {
-      existingByNormalized[XAccount.normalizeUsername(acc.username)] = acc;
-    }
-
-    int added = 0;
-    int updated = 0;
-    int skipped = 0;
-
-    // Dùng batch để tối đa hiệu năng khi nhập nhiều dòng.
-    final batch = db.batch();
-
-    for (final row in rows) {
-      final rawUsername = (row['username'] ?? '').trim();
-      if (rawUsername.isEmpty) {
-        skipped++;
-        continue;
+    return await db.transaction<CsvImportResult>((txn) async {
+      // Lấy tất cả tài khoản hiện có để so sánh trùng lặp.
+      final existingMaps = await txn.query('accounts');
+      final Map<String, XAccount> existingByNormalized = {};
+      for (final map in existingMaps) {
+        final acc = XAccount.fromMap(map);
+        existingByNormalized[XAccount.normalizeUsername(acc.username)] = acc;
       }
 
-      final normalized = XAccount.normalizeUsername(rawUsername);
-      final link = (row['link'] ?? '').trim();
-      final favoriteStr = (row['favorite'] ?? '').trim().toLowerCase();
-      final favorite = favoriteStr == 'true' || favoriteStr == '1';
-      final folder = (row['folder'] ?? '').trim();
-      final status = (row['status'] ?? '').trim();
-      final addedAtStr = (row['added_at'] ?? '').trim();
-      final lastSeenStr = (row['last_seen_following'] ?? '').trim();
-
-      final existing = existingByNormalized[normalized];
-
-      if (existing == null) {
-        // Tên mới -> chèn vào CSDL (batch)
-        batch.insert('accounts', {
-          'username': rawUsername,
-          'link': link,
-          'favorite': favorite ? 1 : 0,
-          'folder': folder.isEmpty ? null : folder,
-          'status': status.isEmpty ? AppConstants.statusActive : status,
-          'added_at': addedAtStr.isEmpty ? null : addedAtStr,
-          'last_seen_following': lastSeenStr.isEmpty ? null : lastSeenStr,
-          'last_opened': null,
-        });
-        added++;
-      } else {
-        // Đã tồn tại -> giữ nguyên favorite/folder của app, chỉ cập nhật status (và link nếu trống)
-        final newLink = link.isEmpty ? existing.link : link;
-        final newStatus = status.isEmpty ? existing.status : status;
-        batch.update(
-          'accounts',
-          {
-            'link': newLink,
-            'status': newStatus,
-          },
-          where: 'id = ?',
-          whereArgs: [existing.id],
-        );
-        updated++;
+      // Tên folder hiện có: khóa chữ thường -> tên gốc, để tránh tạo trùng.
+      final folderRows = await txn.query('folders', columns: ['name']);
+      final Map<String, String> existingFolderNames = {};
+      for (final row in folderRows) {
+        final name = (row['name'] ?? '').toString().trim();
+        if (name.isNotEmpty) {
+          existingFolderNames[name.toLowerCase()] = name;
+        }
       }
-    }
 
-    await batch.commit(noResult: true);
-    return CsvImportResult(added: added, updated: updated, skipped: skipped);
+      int added = 0;
+      int updated = 0;
+      int skipped = 0;
+
+      for (final row in rows) {
+        final rawUsername =
+            (row['username'] ?? '').trim().replaceFirst(RegExp(r'^@+'), '').trim();
+        if (rawUsername.isEmpty) {
+          skipped++;
+          continue;
+        }
+
+        final normalized = XAccount.normalizeUsername(rawUsername);
+
+        final parsedLink = (row['link'] ?? '').trim();
+        final link = parsedLink.isEmpty ? 'https://x.com/$rawUsername' : parsedLink;
+        final favoriteStr = (row['favorite'] ?? '').trim().toLowerCase();
+        final favorite = favoriteStr == 'true' || favoriteStr == '1';
+        final folder = (row['folder'] ?? '').trim();
+        final status = (row['status'] ?? '').trim();
+        final addedAtStr = (row['added_at'] ?? '').trim();
+        final lastSeenStr = (row['last_seen_following'] ?? '').trim();
+
+        // Folder xuất hiện trong CSV phải có trong bảng folders.
+        // Dùng lại đúng tên đã có (không phân biệt hoa thường) để tránh tạo trùng.
+        var storedFolder = folder;
+        if (folder.isNotEmpty &&
+            folder.toLowerCase() != AppConstants.folderUncategorized.toLowerCase()) {
+          final folderKey = folder.toLowerCase();
+          final existingName = existingFolderNames[folderKey];
+          if (existingName == null) {
+            existingFolderNames[folderKey] = folder;
+            await txn.insert(
+              'folders',
+              {'name': folder},
+              conflictAlgorithm: ConflictAlgorithm.ignore,
+            );
+          } else {
+            storedFolder = existingName;
+          }
+        } else if (folder.toLowerCase() ==
+            AppConstants.folderUncategorized.toLowerCase()) {
+          storedFolder = '';
+        }
+
+        final existing = existingByNormalized[normalized];
+
+        if (existing == null) {
+          // Tên mới -> chèn vào CSDL.
+          final newId = await txn.insert('accounts', {
+            'username': rawUsername,
+            'link': link,
+            'favorite': favorite ? 1 : 0,
+            'folder': storedFolder.isEmpty ? null : storedFolder,
+            'status': status.isEmpty ? AppConstants.statusActive : status,
+            'added_at': addedAtStr.isEmpty ? null : addedAtStr,
+            'last_seen_following': lastSeenStr.isEmpty ? null : lastSeenStr,
+            'last_opened': null,
+          });
+
+          // Ghi nhớ để các dòng trùng trong cùng file được gộp vào bản ghi này.
+          existingByNormalized[normalized] = XAccount(
+            id: newId,
+            username: rawUsername,
+            link: link,
+            favorite: favorite,
+            folder: storedFolder.isEmpty ? null : storedFolder,
+            status: status.isEmpty ? AppConstants.statusActive : status,
+            addedAt: addedAtStr.isEmpty ? null : DateTime.tryParse(addedAtStr),
+            lastSeenFollowing:
+                lastSeenStr.isEmpty ? null : DateTime.tryParse(lastSeenStr),
+          );
+          added++;
+        } else {
+          // Đã tồn tại -> giữ nguyên favorite/folder của app, chỉ cập nhật status
+          // (và link nếu trống).
+          final newLink = parsedLink.isEmpty ? existing.link : parsedLink;
+          final newStatus = status.isEmpty ? existing.status : status;
+          await txn.update(
+            'accounts',
+            {
+              'link': newLink,
+              'status': newStatus,
+            },
+            where: 'id = ?',
+            whereArgs: [existing.id],
+          );
+
+          existingByNormalized[normalized] = existing.copyWith(
+            link: newLink,
+            status: newStatus,
+          );
+          updated++;
+        }
+      }
+
+      return CsvImportResult(added: added, updated: updated, skipped: skipped);
+    });
   }
 
   /// Xuất tất cả tài khoản ra danh sách Map (dùng để ghi file CSV).
