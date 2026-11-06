@@ -55,44 +55,8 @@ jobs:
             build/app/outputs/flutter-apk/*.apk
           retention-days: 30
 
-  windows:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          cache: true
-
-      - name: Enable Windows desktop
-        run: flutter config --enable-windows-desktop
-
-      - name: Create Windows desktop project
-        run: flutter create --platforms=windows .
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Build Windows release
-        run: flutter build windows --release
-
-      - name: Zip Release folder
-        shell: pwsh
-        run: Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "XFavorites_Windows.zip"
-
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: xfavorites-windows
-          path: XFavorites_Windows.zip
-          retention-days: 30
-
   release:
-    needs: [android, windows]
+    needs: [android]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -106,7 +70,6 @@ jobs:
         with:
           files: |
             *.apk
-            *.zip
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           generate_release_notes: true

@@ -50,12 +50,12 @@ class CsvExport {
   }
 
   /// Mã hóa chuỗi CSV thành byte UTF-8 có BOM (EF BB BF).
-  static Uint8List toUtf8WithBom(String csvString) {
-    final bom = const [0xEF, 0xBB, 0xBF];
+  static List<int> toUtf8WithBom(String csvString) {
+    final bom = <int>[0xEF, 0xBB, 0xBF];
     final body = utf8.encode(csvString);
-    final result = Uint8List(bom.length + body.length);
-    result.setRange(0, bom.length, bom);
-    result.setRange(bom.length, bom.length + body.length, body);
+    final result = <int>[];
+    result.addAll(bom);
+    result.addAll(body);
     return result;
   }
 }

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -341,7 +340,7 @@ class AccountRepository extends ChangeNotifier {
   }
 
   /// Trả về byte CSV UTF-8 BOM (dùng nếu muốn chia sẻ / lưu khác).
-  Uint8List exportCsvBytes() {
+  List<int> exportCsvBytes() {
     final csvString = CsvExport.toCsvString(_allAccounts);
     return CsvExport.toUtf8WithBom(csvString);
   }
