@@ -200,13 +200,32 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _openUrl(String link) async {
+    var raw = link.trim();
+    if (raw.isEmpty) {
+      _showToast('Tài khoản này chưa có link.');
+      return;
+    }
+    // Bổ sung scheme nếu dữ liệu CSV chỉ lưu dạng "x.com/username".
+    if (!raw.contains('://')) {
+      raw = 'https://$raw';
+    }
+
+    final uri = Uri.tryParse(raw);
+    if (uri == null || !uri.hasScheme) {
+      _showToast('Link không hợp lệ: $link');
+      return;
+    }
+
+    // Không dùng canLaunchUrl(): trên Android 11+ nó trả về false nếu
+    // AndroidManifest thiếu thẻ <queries> cho scheme https, dù trình duyệt
+    // vẫn mở được bằng launchUrl(). Gọi thẳng launchUrl() và xử lý kết quả.
     try {
-      final uri = Uri.parse(link);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened) {
         _showToast('Không mở được link: $link');
       }
+    } on PlatformException catch (e) {
+      _showToast('Không mở được link: ${e.message ?? e.code}');
     } catch (e) {
       _showToast('Không mở được link: ${_describeError(e)}');
     }
