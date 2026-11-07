@@ -443,26 +443,23 @@ class AccountRepository extends ChangeNotifier {
   /// Trả về `null` khi người dùng hủy chọn file (không hiện thông báo).
   /// Ném exception với thông điệp tiếng Việt khi có lỗi thật.
   Future<CsvImportResult?> importCsvFromPicker() async {
-    final result = await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFile(
       type: FileType.any,
-      allowMultiple: false,
-      withData: true,
+      dialogTitle: 'Chọn file CSV',
     );
 
     // Người dùng hủy chọn file.
-    if (result == null || result.files.isEmpty) return null;
+    if (picked == null) return null;
 
-    final picked = result.files.single;
     final fileName = picked.name.toLowerCase();
     if (!fileName.endsWith('.csv') && !fileName.endsWith('.txt')) {
       throw Exception('Vui lòng chọn file .csv');
     }
 
-    Uint8List? bytes = picked.bytes;
-    if (bytes == null && picked.path != null) {
-      bytes = await File(picked.path!).readAsBytes();
-    }
-    if (bytes == null) {
+    final Uint8List bytes;
+    try {
+      bytes = await picked.readAsBytes();
+    } catch (_) {
       throw Exception(
         'Không đọc được nội dung file "${picked.name}". Vui lòng thử lại với file .csv khác.',
       );

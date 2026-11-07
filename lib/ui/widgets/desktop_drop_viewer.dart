@@ -33,15 +33,15 @@ class DropViewer extends StatefulWidget {
 class _DropViewerState extends State<DropViewer> {
   bool _dragging = false;
 
-  Future<void> _handleDrop(DropDetails details) async {
+  Future<void> _handleDrop(DropDoneDetails details) async {
     if (_dragging) {
       setState(() => _dragging = false);
     }
 
-    for (final item in details.items) {
-      if (item is! DropFileItem) continue;
+    for (final item in details.files) {
+      if (item is DropItemDirectory) continue;
       try {
-        final bytes = await item.file.readAsBytes();
+        final bytes = await item.readAsBytes();
         await widget.onDropFile(bytes, item.name);
       } catch (e) {
         widget.onError?.call('Không đọc được file đã thả: $e');
@@ -52,10 +52,9 @@ class _DropViewerState extends State<DropViewer> {
   @override
   Widget build(BuildContext context) {
     return DropTarget(
-      acceptedKinds: const {DropItemKind.file},
-      onEnter: (_) => setState(() => _dragging = true),
-      onLeave: () => setState(() => _dragging = false),
-      onDrop: _handleDrop,
+      onDragEntered: (_) => setState(() => _dragging = true),
+      onDragExited: (_) => setState(() => _dragging = false),
+      onDragDone: _handleDrop,
       child: Stack(
         children: [
           widget.child,
